@@ -1,27 +1,32 @@
 # My Notes
 
-A fast, good-looking notes app for Android. Pastel cards on a black dotted canvas,
-checklists, photo notes with on-device OCR, voice notes, reminders that actually
-fire, labels, and cloud sync. Free forever — no paywalls, no account wall. Start
-anonymous, link Google whenever you want a backup.
+A fast, good-looking notes app for Android. Clean white design, rich text editor,
+drawing canvas, checklists, photo notes with on-device OCR, voice notes with an
+in-note player, reminders that actually fire, labels, and cloud sync. Free forever —
+no paywalls, no account wall. Start anonymous, link Google whenever you want a backup.
 
 ## Download
 
-**[MyNotes-v1.0.apk](https://github.com/kurupdevs/MyNotes/releases/download/v1.0/MyNotes-v1.0.apk)**
+**[MyNotes-v2.0.apk](https://github.com/kurupdevs/MyNotes/releases/download/v2.0/MyNotes-v2.0.apk)**
 · [download page](https://kurupdevs.github.io/mynotes/) · [all releases](https://github.com/kurupdevs/MyNotes/releases)
 
-| Home | Editor | Voice notes | Reminders |
+| Home | Note | Drawing | Options |
 |---|---|---|---|
-| ![](screenshots/01-home.webp) | ![](screenshots/02-editor.webp) | ![](screenshots/03-voice.webp) | ![](screenshots/04-reminders.webp) |
+| ![](screenshots/v2-01-home.webp) | ![](screenshots/v2-02-editor.webp) | ![](screenshots/v2-03-draw.webp) | ![](screenshots/v2-04-sheet.webp) |
 
 ## Features
 
-- Staggered home grid: pastel cards (coral, yellow, cream, green, blue, purple),
-  filter chips (All / Important / To-do / labels), dotted black background
-- Block-based editor: headings, bold/italic/underline/strike, bullets, per-line
-  checklists, undo/redo, 800ms autosave, word count
+- Home grid with cover thumbnails, checklist previews, label pills, dates —
+  locked notes show a blurred card
+- Rich editor: headings (H1–H3), bold/italic/strike/underline, highlighter colors,
+  bullets, quotes, per-line checklists, undo/redo, autosave, word count
+- Drawing canvas: dotted grid, pen/pencil/eraser, colors, stroke widths, undo/redo —
+  sketches live inside the note and stay editable
+- Voice notes with an inline player (waveform + duration) right in the note body;
+  background recording, speed control
+- Note options sheet: Image, Voice, Share · Pin, Add Thumbnail, Label, Send,
+  Make a Copy, Reminder, Archive, Note color, Export TXT, Lock Note, Delete
 - Photo notes with on-device OCR (text in pictures becomes searchable)
-- Voice notes: background recording, waveform playback, speed control
 - Reminders with exact alarms (survive reboot), snooze, daily/weekly repeat
 - Pin / archive / 30-day trash with restore, colored labels, full-text search
 - Share notes with viewer/editor roles, per-paragraph conflict pick-one
