@@ -1,10 +1,14 @@
 name: Android Release Build
 
 
+
+
 on:
   push:
     branches: [main]
   workflow_dispatch:
+
+
 
 
 jobs:
@@ -12,6 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+
 
 
       - name: Set up JDK 17
@@ -22,12 +28,18 @@ jobs:
           cache: gradle
 
 
-      - name: Decode release keystore
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | tr -- '-_' '+/' | base64 --decode > app/release.keystore
+
+
+      - name: Decrypt release keystore
+        run: openssl enc -d -aes-256-cbc -pbkdf2 -in app/release.keystore.enc -out app/release.keystore -pass "pass:${{ secrets.KEYSTORE_PASSWORD }}"
+
+
 
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
+
+
 
 
       - name: Build signed release APK
@@ -36,6 +48,8 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew assembleRelease --stacktrace
+
+
 
 
       - name: Upload release APK
