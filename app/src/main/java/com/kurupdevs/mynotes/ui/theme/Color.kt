@@ -16,6 +16,7 @@ val CardYellowLight = Color(0xFFF0CD3F)
 val CardCreamLight = Color(0xFFF2E4B8)
 val CardGreenLight = Color(0xFF9CCC5F)
 val CardBlueLight = Color(0xFF7A93AC)
+val CardPurpleLight = Color(0xFF836DD2)
 
 // ---- inks ----
 val InkOnCoral = Color(0xFF3D1508)

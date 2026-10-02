@@ -10,6 +10,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
@@ -48,7 +49,7 @@ class ExportManager(
                     }
                 }
                 putJsonArray("labels") {
-                    Jsons.labels(n.labelsJson).forEach { add(it) }
+                    Jsons.labels(n.labelsJson).forEach { add(JsonPrimitive(it)) }
                 }
             }
         }

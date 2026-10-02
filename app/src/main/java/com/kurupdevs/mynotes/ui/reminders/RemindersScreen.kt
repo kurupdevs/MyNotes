@@ -32,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -153,7 +154,7 @@ private fun ReminderRow(
 ) {
     val ink = if (dark) TitleWhite else Color(0xFF141210)
     var offsetX by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
-    val scope = remember { androidx.compose.runtime.rememberCoroutineScope() }
+    val scope = rememberCoroutineScope()
     Box(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
             .background(if (dark) Color(0xFF141214) else Color.White)

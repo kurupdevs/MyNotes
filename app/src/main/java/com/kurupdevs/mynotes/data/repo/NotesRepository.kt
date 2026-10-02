@@ -3,6 +3,7 @@ package com.kurupdevs.mynotes.data.repo
 import android.content.Context
 import com.kurupdevs.mynotes.data.cloud.CloudinaryUploader
 import com.kurupdevs.mynotes.data.local.NoteEntity
+import com.kurupdevs.mynotes.data.local.LabelEntity
 import com.kurupdevs.mynotes.data.local.NoteFts
 import com.kurupdevs.mynotes.data.local.NotesDatabase
 import com.kurupdevs.mynotes.data.model.Attachment
