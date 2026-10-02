@@ -76,3 +76,19 @@ fun subOnCard(key: String): Color = when (key) {
     "green", "blue", "purple" -> InkOnCoral.copy(alpha = 0.6f)
     else -> SubOnCream
 }
+
+// ---- white theme (v2 home redesign) ----
+val WhiteScreenBg = Color(0xFFFFFFFF)
+val WhiteCardBg = Color(0xFFFFFFFF)
+val WhiteSearchField = Color(0xFFF1EEE8)
+val WhiteHint = Color(0xFF9A938A)
+val WhitePreview = Color(0xFF6E6A63)
+val WhiteDate = Color(0xFFA3A099)
+val WhiteTitle = Color(0xFF141210)
+val WhiteLabelPill = Color(0xFF262626)
+val WhiteLabelPillText = Color(0xFFFFFFFF)
+val WhiteAvatarBg = Color(0xFFF5A623)
+val WhiteCheckFill = Color(0xFF1A1A1A)
+val WhiteCheckMark = Color(0xFFFFFFFF)
+val WhiteMicBg = Color(0xFFF1EEE8)
+val WhiteSwipeBg = Color(0xFFF1EEE8)

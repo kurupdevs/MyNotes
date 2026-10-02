@@ -253,6 +253,33 @@ class EditorViewModel(app: Application, private val noteId: String) : AndroidVie
         }
     }
 
+    /** Note cover thumbnail: saved as Attachment(kind="thumbnail"), no IMG block. Mirrors attachImageFile's upload path. */
+    fun attachThumbnailFile(file: File) {
+        viewModelScope.launch {
+            val att = Attachment(
+                id = UUID.randomUUID().toString(), kind = "thumbnail",
+                localPath = file.absolutePath, mime = "image/webp", sizeBytes = file.length()
+            )
+            attachments.value = attachments.value + att
+            scheduleSave()
+            // Cloudinary upload in background (no block added for thumbnails)
+            launch {
+                try {
+                    val res = c.uploader.uploadImage(file, repo.uid(), noteId)
+                    val up = att.copy(
+                        url = res.url, cloudinaryPublicId = res.publicId,
+                        width = res.width, height = res.height, sizeBytes = res.sizeBytes
+                    )
+                    repo.updateAttachment(noteId, up)
+                    attachments.value = attachments.value.map { if (it.id == att.id) up else it }
+                    scheduleSave()
+                } catch (_: Exception) {
+                    // stays local-only; sync will retry later
+                }
+            }
+        }
+    }
+
     fun wordCount(): Int {
         var n = title.value.trim().split(Regex("\\s+")).count { it.isNotEmpty() }
         blocks.value.forEach { b ->

@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 enum class NoteType { TEXT, CHECKLIST, IMAGE, VOICE }
 enum class SyncStatus { SYNCED, PENDING_UPLOAD, PENDING_DELETE, CONFLICT }
 enum class SortOrder { EDITED, CREATED, TITLE, COLOR }
-enum class BlockKind { P, H1, H2, LI, TODO, IMG, AUDIO }
+enum class BlockKind { P, H1, H2, LI, TODO, IMG, AUDIO, DRAW }
 
 @Serializable
 data class Block(

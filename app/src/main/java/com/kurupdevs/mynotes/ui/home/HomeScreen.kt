@@ -28,9 +28,11 @@ import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.itemsIndexed
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sync
@@ -66,6 +68,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -80,6 +84,11 @@ import com.kurupdevs.mynotes.ui.theme.ChipShape
 import com.kurupdevs.mynotes.ui.theme.MenuBg
 import com.kurupdevs.mynotes.ui.theme.MenuDots
 import com.kurupdevs.mynotes.ui.theme.TitleWhite
+import com.kurupdevs.mynotes.ui.theme.WhiteAvatarBg
+import com.kurupdevs.mynotes.ui.theme.WhiteHint
+import com.kurupdevs.mynotes.ui.theme.WhiteScreenBg
+import com.kurupdevs.mynotes.ui.theme.WhiteSearchField
+import com.kurupdevs.mynotes.ui.theme.WhiteTitle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -128,6 +137,8 @@ fun HomeScreen(
             first == 0 && offset < 120
         }
     }
+    // label id -> name for the card label pill
+    val labelNameMap = remember(labels) { labels.associate { it.id to it.name } }
 
     LaunchedEffect(toastMsg) {
         toastMsg?.let { t ->
@@ -142,10 +153,10 @@ fun HomeScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
-        containerColor = Color.Transparent,
+        containerColor = if (dark) Color.Transparent else WhiteScreenBg,
         content = { pad ->
             Box(Modifier.fillMaxSize().padding(pad)) {
-                DottedBackground(dark)
+                if (dark) DottedBackground(dark)
                 PullToRefreshBox(
                     state = ptrState,
                     isRefreshing = syncing,
@@ -175,22 +186,22 @@ fun HomeScreen(
                                     style = MaterialTheme.typography.headlineMedium,
                                     color = if (dark) TitleWhite else Color(0xFF141210)
                                 )
-                            } else {
+                            } else if (dark) {
                                 Text(
                                     "My Notes",
                                     style = MaterialTheme.typography.displayLarge,
-                                    color = if (dark) TitleWhite else Color(0xFF141210),
+                                    color = TitleWhite,
                                     modifier = Modifier.weight(1f)
                                 )
-                                SyncPill(syncing = syncing, anonymous = isAnonymous, dark = dark, onClick = { vm.syncNow() })
+                                SyncPill(syncing = syncing, anonymous = isAnonymous, dark = true, onClick = { vm.syncNow() })
                                 Spacer(Modifier.width(8.dp))
                                 IconButton(onClick = onOpenSearch) {
-                                    Icon(Icons.Filled.Search, "Search notes", tint = if (dark) TitleWhite else Color(0xFF141210), modifier = Modifier.size(26.dp))
+                                    Icon(Icons.Filled.Search, "Search notes", tint = TitleWhite, modifier = Modifier.size(26.dp))
                                 }
                                 // avatar dot -> settings
                                 Box(
                                     Modifier.size(40.dp).clip(CircleShape)
-                                        .background(if (dark) MenuBg else Color(0xFFE7E1D3))
+                                        .background(MenuBg)
                                         .clickable(
                                             interactionSource = remember { MutableInteractionSource() },
                                             indication = null,
@@ -201,31 +212,73 @@ fun HomeScreen(
                                     Text(
                                         "A",
                                         style = MaterialTheme.typography.labelLarge,
-                                        color = if (dark) MenuDots else Color(0xFF6B6257)
+                                        color = MenuDots
                                     )
                                 }
-                                Box {
-                                    IconButton(onClick = { menuOpen = true }) {
-                                        Icon(Icons.Filled.MoreVert, "Menu", tint = if (dark) MenuDots else Color(0xFF6B6257))
-                                    }
-                                    DropdownMenu(
-                                        expanded = menuOpen,
-                                        onDismissRequest = { menuOpen = false },
-                                        modifier = Modifier.background(if (dark) MenuBg else Color.White)
-                                    ) {
-                                        listOf(
-                                            "Reminders" to onOpenReminders,
-                                            "Labels" to onOpenLabels,
-                                            "Archive" to onOpenArchive,
-                                            "Trash" to onOpenTrash,
-                                            "Settings" to onOpenSettings
-                                        ).forEach { (label, fn) ->
-                                            DropdownMenuItem(
-                                                text = { Text(label, color = if (dark) MenuDots else Color(0xFF141210)) },
-                                                onClick = { menuOpen = false; fn() }
-                                            )
-                                        }
-                                    }
+                                HomeMenu(
+                                    dark = true, menuOpen = menuOpen,
+                                    onOpenMenu = { menuOpen = true }, onDismiss = { menuOpen = false },
+                                    onOpenReminders = onOpenReminders, onOpenLabels = onOpenLabels,
+                                    onOpenArchive = onOpenArchive, onOpenTrash = onOpenTrash,
+                                    onOpenSettings = onOpenSettings
+                                )
+                            } else {
+                                // avatar (colored circle + person icon) -> settings
+                                Box(
+                                    Modifier.size(42.dp).clip(CircleShape)
+                                        .background(WhiteAvatarBg)
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null,
+                                            onClick = onOpenSettings
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Filled.Person, "Profile and settings", tint = Color.White, modifier = Modifier.size(26.dp))
+                                }
+                                Spacer(Modifier.width(10.dp))
+                                Text(
+                                    "My Notes",
+                                    style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
+                                    color = WhiteTitle,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                SyncPill(syncing = syncing, anonymous = isAnonymous, dark = false, onClick = { vm.syncNow() })
+                                HomeMenu(
+                                    dark = false, menuOpen = menuOpen,
+                                    onOpenMenu = { menuOpen = true }, onDismiss = { menuOpen = false },
+                                    onOpenReminders = onOpenReminders, onOpenLabels = onOpenLabels,
+                                    onOpenArchive = onOpenArchive, onOpenTrash = onOpenTrash,
+                                    onOpenSettings = onOpenSettings
+                                )
+                            }
+                        }
+
+                        // ---- search field (light theme) ----
+                        if (!dark && !inSelection) {
+                            Box(
+                                Modifier.fillMaxWidth()
+                                    .padding(horizontal = 12.dp)
+                                    .padding(top = 10.dp)
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(WhiteSearchField)
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null,
+                                        onClick = onOpenSearch
+                                    )
+                                    .padding(horizontal = 16.dp, vertical = 13.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Filled.Search, "Search notes", tint = WhiteHint, modifier = Modifier.size(22.dp))
+                                    Spacer(Modifier.width(12.dp))
+                                    Text(
+                                        "Search Note...",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = WhiteHint,
+                                        modifier = Modifier.weight(1f)
+                                    )
                                 }
                             }
                         }
@@ -284,6 +337,7 @@ fun HomeScreen(
                                                 pinned = note.pinned,
                                                 onPin = { vm.swipePin(note.id) },
                                                 onArchive = { vm.swipeArchive(note.id, note.pinned) },
+                                                dark = dark,
                                                 modifier = Modifier
                                                     .sharedElement(
                                                         sharedScope.rememberSharedContentState("note-${note.id}"),
@@ -316,12 +370,13 @@ fun HomeScreen(
                                                             onOpen = { onOpenNote(note.id) },
                                                             onToggleTodo = { vm.quickToggleTodo(note.id, it) },
                                                             onToggleFavorite = { vm.toggleFavorite(note.id) },
+                                                            labelNames = labelNameMap,
                                                             modifier = Modifier.fillMaxWidth()
                                                         )
                                                         if (note.pinned) {
                                                             Icon(
                                                                 Icons.Filled.PushPin, "Pinned",
-                                                                tint = Color.White.copy(alpha = 0.85f),
+                                                                tint = if (dark) Color.White.copy(alpha = 0.85f) else Color(0xFF6B6257),
                                                                 modifier = Modifier.align(Alignment.TopStart).padding(10.dp).size(16.dp)
                                                             )
                                                         }
@@ -355,7 +410,7 @@ fun HomeScreen(
                 // ---- dock ----
                 androidx.compose.animation.AnimatedVisibility(
                     visible = dockVisible && !inSelection,
-                    modifier = Modifier.align(Alignment.BottomCenter),
+                    modifier = Modifier.align(if (dark) Alignment.BottomCenter else Alignment.BottomEnd),
                     enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInVertically { it / 2 },
                     exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.slideOutVertically { it / 2 }
                 ) {
@@ -435,6 +490,43 @@ private fun SpinningSync(tint: Color) {
         }
     }
     Icon(Icons.Filled.Sync, "Syncing", tint = tint, modifier = Modifier.size(20.dp).graphicsLayer { rotationZ = angle })
+}
+
+@Composable
+private fun HomeMenu(
+    dark: Boolean,
+    menuOpen: Boolean,
+    onOpenMenu: () -> Unit,
+    onDismiss: () -> Unit,
+    onOpenReminders: () -> Unit,
+    onOpenLabels: () -> Unit,
+    onOpenArchive: () -> Unit,
+    onOpenTrash: () -> Unit,
+    onOpenSettings: () -> Unit
+) {
+    Box {
+        IconButton(onClick = onOpenMenu) {
+            Icon(Icons.Filled.MoreVert, "Menu", tint = if (dark) MenuDots else WhiteHint)
+        }
+        DropdownMenu(
+            expanded = menuOpen,
+            onDismissRequest = onDismiss,
+            modifier = Modifier.background(if (dark) MenuBg else Color.White)
+        ) {
+            listOf(
+                "Reminders" to onOpenReminders,
+                "Labels" to onOpenLabels,
+                "Archive" to onOpenArchive,
+                "Trash" to onOpenTrash,
+                "Settings" to onOpenSettings
+            ).forEach { (label, fn) ->
+                DropdownMenuItem(
+                    text = { Text(label, color = if (dark) MenuDots else Color(0xFF141210)) },
+                    onClick = { onDismiss(); fn() }
+                )
+            }
+        }
+    }
 }
 
 @Composable

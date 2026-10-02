@@ -11,7 +11,9 @@ object Routes {
     const val ARCHIVE = "archive"
     const val SETTINGS = "settings"
     const val SHARE = "share/{noteId}"
+    const val DRAW = "draw/{noteId}"
 
     fun editor(noteId: String) = "editor/$noteId"
     fun share(noteId: String) = "share/$noteId"
+    fun draw(noteId: String) = "draw/$noteId"
 }

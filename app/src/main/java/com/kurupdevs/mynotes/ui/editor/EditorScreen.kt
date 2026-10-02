@@ -1,6 +1,7 @@
 package com.kurupdevs.mynotes.ui.editor
 
 import android.app.Application
+import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -8,6 +9,7 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -16,11 +18,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -29,16 +30,10 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Redo
 import androidx.compose.material.icons.filled.Undo
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -56,39 +51,41 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kurupdevs.mynotes.NotesApp
-import com.kurupdevs.mynotes.data.model.BlockKind
-import com.kurupdevs.mynotes.data.model.SyncStatus
+import com.kurupdevs.mynotes.data.model.Block
+import com.kurupdevs.mynotes.data.remote.Jsons
 import com.kurupdevs.mynotes.ui.common.DottedBackground
-import com.kurupdevs.mynotes.ui.home.CheckboxCircle
 import com.kurupdevs.mynotes.ui.home.ColorPickSheet
 import com.kurupdevs.mynotes.ui.home.LabelPickSheet
-import com.kurupdevs.mynotes.ui.home.fmtDur
 import com.kurupdevs.mynotes.ui.home.relTime
-import com.kurupdevs.mynotes.ui.theme.MenuBg
-import com.kurupdevs.mynotes.ui.theme.MenuDots
 import com.kurupdevs.mynotes.ui.theme.TitleWhite
 import com.kurupdevs.mynotes.ui.theme.cardColor
 import com.kurupdevs.mynotes.ui.theme.inkOnCard
 import com.kurupdevs.mynotes.ui.voice.VoiceRecorderSheet
 import kotlinx.coroutines.launch
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+private val AvatarPalette = listOf(
+    Color(0xFFEA7B53), Color(0xFF5B8DEF), Color(0xFF4CAF7D), Color(0xFF9B7EDE)
+)
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -99,7 +96,8 @@ fun EditorScreen(
     animScope: AnimatedVisibilityScope,
     onBack: () -> Unit,
     onShare: (String) -> Unit,
-    onDuplicate: (String) -> Unit
+    onDuplicate: (String) -> Unit,
+    onDrawNote: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val app = context.applicationContext as Application
@@ -122,14 +120,16 @@ fun EditorScreen(
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
 
-    var menuOpen by remember { mutableStateOf(false) }
+    var sheetOpen by remember { mutableStateOf(false) }
     var colorOpen by remember { mutableStateOf(false) }
     var labelOpen by remember { mutableStateOf(false) }
     var reminderOpen by remember { mutableStateOf(false) }
     var voiceOpen by remember { mutableStateOf(false) }
     var attachOpen by remember { mutableStateOf(false) }
     var deleteConfirm by remember { mutableStateOf(false) }
-    var showWordCount by remember { mutableStateOf(true) }
+
+    val labelEntities by container.notes.labelsFlow().collectAsState(initial = emptyList())
+    val metaFmt = remember { SimpleDateFormat("EEE, MMM d, yyyy HH:mm", Locale.getDefault()) }
 
     val ink: Color
     val bg: Color
@@ -140,8 +140,23 @@ fun EditorScreen(
         }
         return
     }
-    bg = cardColor(n.color, dark)
-    ink = inkOnCard(n.color)
+    bg = if (dark) cardColor(n.color, dark) else Color.White
+    ink = if (dark) inkOnCard(n.color) else Color(0xFF141210)
+
+    val labelIds = remember(n.labelsJson) { Jsons.labels(n.labelsJson) }
+    val firstLabelName = labelIds.firstNotNullOfOrNull { id ->
+        labelEntities.firstOrNull { it.id == id }?.name
+    }
+    val collabs = remember(n.collaboratorsJson) { Jsons.collaborators(n.collaboratorsJson) }
+    // presentational H1 section numbers ("1. Venue and Decor") — stored text untouched
+    val h1Nums = remember(blocks) {
+        var i = 0
+        buildMap<String, Int> {
+            blocks.forEach { b ->
+                if (b.kind == com.kurupdevs.mynotes.data.model.BlockKind.H1) put(b.id, ++i)
+            }
+        }
+    }
 
     // biometric gate
     LaunchedEffect(locked) {
@@ -180,6 +195,14 @@ fun EditorScreen(
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         if (ok) vm.attachImageFile(cameraFile)
     }
+    val thumbLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val f = copyToCache(context, uri, "thumb")
+                if (f != null) vm.attachThumbnailFile(f)
+            }
+        }
+    }
     var notifPermAsked by remember { mutableStateOf(false) }
     val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     LaunchedEffect(reminderOpen) {
@@ -209,78 +232,57 @@ fun EditorScreen(
                 .background(bg),
             topBar = {
                 Row(
-                    Modifier.fillMaxWidth().padding(top = 34.dp, start = 4.dp, end = 4.dp),
+                    Modifier.fillMaxWidth().padding(top = 34.dp, start = 8.dp, end = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = { vm.saveNow(); onBack() }) {
                         Icon(Icons.Filled.ArrowBack, "Back", tint = ink)
                     }
-                    Spacer(Modifier.weight(1f))
-                    // color dot
+                    // collaborator avatar stack, centered
+                    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        if (collabs.isNotEmpty()) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                collabs.keys.take(4).forEachIndexed { i, key ->
+                                    Box(
+                                        Modifier.offset(x = (-12 * i).dp)
+                                            .size(32.dp)
+                                            .clip(CircleShape)
+                                            .background(AvatarPalette[i % AvatarPalette.size])
+                                            .border(2.dp, bg, CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            key.firstOrNull()?.uppercase() ?: "?",
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // dark circular done button
+                    val doneBg = if (dark) Color.White else Color(0xFF1C1C1E)
                     Box(
-                        Modifier.size(30.dp).clip(CircleShape).background(bg)
+                        Modifier.size(46.dp).clip(CircleShape).background(doneBg)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null
-                            ) { colorOpen = true }
-                            .padding(4.dp),
+                            ) { vm.saveNow(); onBack() },
                         contentAlignment = Alignment.Center
                     ) {
-                        Box(Modifier.size(20.dp).clip(CircleShape).background(ink.copy(alpha = 0.25f)))
-                    }
-                    IconButton(onClick = { vm.togglePin() }) {
                         Icon(
-                            Icons.Filled.PushPin, "Pin",
-                            tint = if (n.pinned) ink else ink.copy(alpha = 0.5f)
+                            Icons.Filled.Check, "Done",
+                            tint = if (dark) Color(0xFF1C1C1E) else Color.White,
+                            modifier = Modifier.size(24.dp)
                         )
-                    }
-                    IconButton(onClick = { vm.setLocked(!locked) }) {
-                        Icon(
-                            if (locked) Icons.Filled.Lock else Icons.Filled.LockOpen,
-                            if (locked) "Unlock note" else "Lock note",
-                            tint = ink.copy(alpha = 0.7f)
-                        )
-                    }
-                    IconButton(onClick = { vm.toggleFavorite() }) {
-                        Icon(
-                            if (n.favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                            "Important", tint = ink.copy(alpha = 0.7f)
-                        )
-                    }
-                    Box {
-                        IconButton(onClick = { menuOpen = true }) {
-                            Icon(Icons.Filled.MoreVert, "More", tint = ink.copy(alpha = 0.7f))
-                        }
-                        DropdownMenu(
-                            expanded = menuOpen, onDismissRequest = { menuOpen = false },
-                            modifier = Modifier.background(if (dark) MenuBg else Color.White)
-                        ) {
-                            val itemColor = if (dark) MenuDots else Color(0xFF141210)
-                            listOf(
-                                "Reminder" to { reminderOpen = true },
-                                "Labels" to { labelOpen = true },
-                                "Share" to { onShare(noteId) },
-                                "Duplicate" to { vm.duplicate(onDuplicate) },
-                                if (n.archived) "Unarchive" to { vm.archive(false) } else "Archive" to { vm.archive(true) },
-                                "Export as TXT" to {
-                                    val f = vm.exportTxt()
-                                    shareFile(context, f, "text/plain")
-                                },
-                                (if (showWordCount) "Hide word count" else "Show word count") to { showWordCount = !showWordCount },
-                                "Delete" to { deleteConfirm = true }
-                            ).forEach { (label, fn) ->
-                                DropdownMenuItem(
-                                    text = { Text(label, color = itemColor) },
-                                    onClick = { menuOpen = false; fn() }
-                                )
-                            }
-                        }
                     }
                 }
             },
             bottomBar = {
                 Column(Modifier.imePadding()) {
-                    FormatToolbar(dark = dark, ink = ink, vm = vm)
+                    FormatPanel(dark = dark, ink = ink, vm = vm)
                     AttachRow(
                         ink = ink,
                         onImage = { attachOpen = true },
@@ -292,13 +294,15 @@ fun EditorScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            "Edited ${relTime(n.updatedAt)}" +
-                                (if (showWordCount) " · ${vm.wordCount()} words" else "") +
+                            "Edited ${relTime(n.updatedAt)} · ${vm.wordCount()} words" +
                                 (if (saving) " · Saving…" else " · Saved"),
                             style = MaterialTheme.typography.labelMedium,
                             color = ink.copy(alpha = 0.6f),
                             modifier = Modifier.weight(1f)
                         )
+                        IconButton(onClick = { sheetOpen = true }, modifier = Modifier.size(36.dp)) {
+                            Icon(Icons.Filled.MoreVert, "Options", tint = ink.copy(alpha = 0.8f))
+                        }
                         IconButton(onClick = { vm.undo() }, enabled = canUndo, modifier = Modifier.size(36.dp)) {
                             Icon(Icons.Filled.Undo, "Undo", tint = ink.copy(alpha = if (canUndo) 0.8f else 0.3f))
                         }
@@ -310,7 +314,7 @@ fun EditorScreen(
             }
         ) { pad ->
             Box(Modifier.fillMaxSize().padding(pad)) {
-                DottedBackground(dark)
+                if (dark) DottedBackground(dark)
                 Column(Modifier.fillMaxSize()) {
                     // title
                     BasicTextField(
@@ -319,6 +323,7 @@ fun EditorScreen(
                         textStyle = TextStyle(
                             fontFamily = MaterialTheme.typography.headlineMedium.fontFamily,
                             fontSize = MaterialTheme.typography.headlineMedium.fontSize,
+                            fontWeight = FontWeight.Bold,
                             color = ink
                         ),
                         cursorBrush = SolidColor(ink),
@@ -336,18 +341,28 @@ fun EditorScreen(
                             inner()
                         }
                     )
+                    // meta line: "<FirstLabel or 'Note'> | EEE, MMM d, yyyy HH:mm"
+                    Text(
+                        "${firstLabelName ?: "Note"} | ${metaFmt.format(Date(n.updatedAt))}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = ink.copy(alpha = 0.55f),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 2.dp)
+                    )
                     // blocks
                     LazyColumn(
                         Modifier.fillMaxSize().padding(horizontal = 20.dp),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 24.dp)
                     ) {
                         items(blocks, key = { it.id }) { block ->
-                            when (block.kind) {
-                                BlockKind.TODO -> TodoBlockRow(block = block, ink = ink, vm = vm, dark = dark)
-                                BlockKind.IMG -> ImageBlockRow(block = block, atts = atts, ink = ink, vm = vm)
-                                BlockKind.AUDIO -> AudioBlockRow(block = block, atts = atts, ink = ink, dark = dark)
-                                else -> TextBlockRow(block = block, ink = ink, vm = vm)
-                            }
+                            BlockRow(
+                                block = block,
+                                atts = atts,
+                                ink = ink,
+                                dark = dark,
+                                vm = vm,
+                                sectionNo = h1Nums[block.id],
+                                onDraw = { onDrawNote(noteId) }
+                            )
                         }
                     }
                 }
@@ -356,14 +371,41 @@ fun EditorScreen(
     }
 
     // ---- sheets & dialogs ----
+    if (sheetOpen) {
+        NoteOptionsSheet(
+            dark = dark,
+            pinned = n.pinned,
+            locked = locked,
+            archived = n.archived,
+            favorite = n.favorite,
+            firstLabelName = firstLabelName,
+            updatedAt = n.updatedAt,
+            onDismiss = { sheetOpen = false },
+            onImage = { attachOpen = true },
+            onVoice = { voiceOpen = true },
+            onShare = { onShare(noteId) },
+            onDraw = { onDrawNote(noteId) },
+            onPin = { vm.togglePin() },
+            onAddThumbnail = { thumbLauncher.launch("image/*") },
+            onLabel = { labelOpen = true },
+            onSend = { sendNote(context, title, blocks) },
+            onDuplicate = { vm.duplicate(onDuplicate) },
+            onReminder = { reminderOpen = true },
+            onArchive = { vm.archive(!n.archived) },
+            onColor = { colorOpen = true },
+            onExport = { shareFile(context, vm.exportTxt(), "text/plain") },
+            onFavorite = { vm.toggleFavorite() },
+            onLock = { vm.setLocked(!locked) },
+            onDelete = { deleteConfirm = true }
+        )
+    }
     if (colorOpen) {
         ColorPickSheet(dark = dark, onDismiss = { colorOpen = false }, onPick = {
             vm.setColor(it); colorOpen = false
         })
     }
     if (labelOpen) {
-        val labels by container.notes.labelsFlow().collectAsState(initial = emptyList())
-        LabelPickSheet(dark = dark, labels = labels, onDismiss = { labelOpen = false }, onPick = {
+        LabelPickSheet(dark = dark, labels = labelEntities, onDismiss = { labelOpen = false }, onPick = {
             vm.setLabels(it); labelOpen = false
         })
     }
@@ -434,4 +476,25 @@ fun shareFile(context: android.content.Context, file: File, mime: String) {
         addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     context.startActivity(android.content.Intent.createChooser(intent, "Share"))
+}
+
+/** ACTION_SEND with the note title + plain text of its blocks. */
+fun sendNote(context: android.content.Context, title: String, blocks: List<Block>) {
+    val sb = StringBuilder()
+    if (title.isNotBlank()) sb.append(title).append("\n\n")
+    blocks.forEach { b ->
+        when (b.kind) {
+            com.kurupdevs.mynotes.data.model.BlockKind.TODO ->
+                sb.append(if (b.checked) "[x] " else "[ ] ")
+            com.kurupdevs.mynotes.data.model.BlockKind.LI -> sb.append("• ")
+            else -> {}
+        }
+        if (b.text.isNotBlank()) sb.append(b.text).append('\n')
+    }
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_SUBJECT, title)
+        putExtra(Intent.EXTRA_TEXT, sb.toString().trim())
+    }
+    context.startActivity(Intent.createChooser(intent, "Send note"))
 }

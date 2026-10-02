@@ -31,7 +31,11 @@ import com.kurupdevs.mynotes.ui.theme.DockMicIcon
 import com.kurupdevs.mynotes.ui.theme.GlowBlue
 import com.kurupdevs.mynotes.ui.theme.GlowGreen
 import com.kurupdevs.mynotes.ui.theme.GlowPurple
-/** Bottom dock: + FAB overlapping a frosted-glass mic on three glow orbs (spec §1.6). */
+import com.kurupdevs.mynotes.ui.theme.WhiteMicBg
+import com.kurupdevs.mynotes.ui.theme.WhiteTitle
+
+/** Bottom dock: dark = + FAB overlapping a frosted-glass mic on three glow orbs (spec §1.6).
+ *  Light = black circular FAB bottom-right with a quick-voice mic tucked above it. */
 @Composable
 fun HomeDock(
     dark: Boolean,
@@ -39,9 +43,22 @@ fun HomeDock(
     onMic: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    if (dark) {
+        DarkDock(onAdd, onMic, modifier)
+    } else {
+        LightDock(onAdd, onMic, modifier)
+    }
+}
+
+@Composable
+private fun DarkDock(
+    onAdd: () -> Unit,
+    onMic: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Box(modifier.size(190.dp, 120.dp), contentAlignment = Alignment.BottomCenter) {
         // glow orbs behind
-        GlowOrbs(dark)
+        GlowOrbs(dark = true)
         // mic button (trailing, tucked ~12dp behind FAB)
         Box(
             Modifier
@@ -97,6 +114,52 @@ fun HomeDock(
         }
     }
 }
+
+@Composable
+private fun LightDock(
+    onAdd: () -> Unit,
+    onMic: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier.size(120.dp, 168.dp)) {
+        // quick-voice mic tucked above the FAB
+        Box(
+            Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = (-30).dp, y = 20.dp)
+                .size(52.dp)
+                .clip(CircleShape)
+                .background(WhiteMicBg)
+                .border(1.dp, Color(0xFFE2DCCC), CircleShape)
+                .combinedClickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    onClick = onMic,
+                    onLongClick = onMic
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Filled.Mic, "Quick voice note", tint = WhiteTitle, modifier = Modifier.size(22.dp))
+        }
+        // black circular FAB, bottom-right
+        Box(
+            Modifier
+                .align(Alignment.BottomEnd)
+                .offset(x = (-12).dp, y = (-12).dp)
+                .size(62.dp)
+                .clip(CircleShape)
+                .background(DockFab)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onAdd
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Filled.Add, "New note", tint = DockFabIcon, modifier = Modifier.size(28.dp))
+        }
+    }
+}
+
 @Composable
 private fun GlowOrbs(dark: Boolean) {
     val alpha = if (dark) 0.55f else 0.3f

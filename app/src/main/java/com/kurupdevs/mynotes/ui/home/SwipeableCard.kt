@@ -29,6 +29,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.kurupdevs.mynotes.ui.theme.CardShape
+import com.kurupdevs.mynotes.ui.theme.WhiteSwipeBg
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -42,7 +43,8 @@ fun SwipeableNoteCard(
     onPin: () -> Unit,
     onArchive: () -> Unit,
     card: @Composable () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    dark: Boolean = true
 ) {
     val scope = rememberCoroutineScope()
     val offsetX = remember { Animatable(0f) }
@@ -80,7 +82,7 @@ fun SwipeableNoteCard(
     ) {
         // under-actions
         Row(
-            Modifier.matchParentSize().background(Color(0xFF1A1A1A)),
+            Modifier.matchParentSize().background(if (dark) Color(0xFF1A1A1A) else WhiteSwipeBg),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // left side (revealed on swipe right): pin

@@ -1,5 +1,6 @@
 package com.kurupdevs.mynotes.ui.editor
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -21,6 +22,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Checklist
@@ -39,7 +41,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -50,17 +51,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
@@ -81,27 +84,36 @@ import coil3.compose.AsyncImage
 import com.kurupdevs.mynotes.data.model.Attachment
 import com.kurupdevs.mynotes.data.model.Block
 import com.kurupdevs.mynotes.data.model.BlockKind
+import com.kurupdevs.mynotes.ui.draw.DrawBlockView
 import com.kurupdevs.mynotes.ui.home.CheckboxCircle
 import com.kurupdevs.mynotes.ui.home.WaveformStrip
 import com.kurupdevs.mynotes.ui.home.fmtDur
 import com.kurupdevs.mynotes.ui.theme.SheetShape
 import com.kurupdevs.mynotes.ui.theme.TitleWhite
 import com.kurupdevs.mynotes.voice.AudioPlayer
-import kotlinx.coroutines.delay
 import java.util.Calendar
+import kotlin.random.Random
 
 fun styledText(block: Block, baseSize: Int, ink: Color): AnnotatedString {
+    val size = when {
+        block.kind == BlockKind.H1 -> 22
+        block.kind == BlockKind.H2 -> 19
+        "h3" in block.marks -> 18
+        else -> baseSize
+    }
+    val heading = block.kind == BlockKind.H1 || block.kind == BlockKind.H2 || "h3" in block.marks
     return buildAnnotatedString {
         withStyle(
             SpanStyle(
-                fontWeight = if ("bold" in block.marks || block.kind == BlockKind.H1 || block.kind == BlockKind.H2) FontWeight.Bold else FontWeight.Medium,
+                fontWeight = if ("bold" in block.marks || heading) FontWeight.Bold else FontWeight.Medium,
                 fontStyle = if ("italic" in block.marks) FontStyle.Italic else FontStyle.Normal,
                 textDecoration = buildList {
                     if ("underline" in block.marks) add(TextDecoration.Underline)
                     if ("strike" in block.marks || (block.kind == BlockKind.TODO && block.checked)) add(TextDecoration.LineThrough)
                 }.let { if (it.isEmpty()) TextDecoration.None else TextDecoration.combine(it) },
-                fontSize = baseSize.sp,
-                color = if (block.kind == BlockKind.TODO && block.checked) ink.copy(alpha = 0.55f) else ink
+                fontSize = size.sp,
+                color = if (block.kind == BlockKind.TODO && block.checked) ink.copy(alpha = 0.55f) else ink,
+                background = hlColor(block.marks) ?: Color.Unspecified
             )
         ) {
             append(block.text)
@@ -109,18 +121,38 @@ fun styledText(block: Block, baseSize: Int, ink: Color): AnnotatedString {
     }
 }
 
+/** Highlighter marks: "hl-yellow" | "hl-green" | "hl-purple" | "hl-pink" */
+fun hlColor(marks: List<String>): Color? = when {
+    "hl-yellow" in marks -> Color(0xFFFFF59D)
+    "hl-green" in marks -> Color(0xFFC5E8B7)
+    "hl-purple" in marks -> Color(0xFFDCCBF7)
+    "hl-pink" in marks -> Color(0xFFF9C6D8)
+    else -> null
+}
+
+private fun sameStyled(a: AnnotatedString, b: AnnotatedString): Boolean =
+    a.text == b.text && a.spanStyles == b.spanStyles && a.paragraphStyles == b.paragraphStyles
+
 @Composable
-fun TextBlockRow(block: Block, ink: Color, vm: EditorViewModel) {
+fun TextBlockRow(block: Block, ink: Color, vm: EditorViewModel, dark: Boolean = false, sectionNo: Int? = null) {
     val focusRequester = remember { FocusRequester() }
     val focusedId by vm.focusedBlock.collectAsState()
+    val baseSize = if (block.kind == BlockKind.H1) 22 else if (block.kind == BlockKind.H2) 19 else 16
     var value by remember(block.id) {
-        mutableStateOf(TextFieldValue(styledText(block, if (block.kind == BlockKind.H1) 22 else if (block.kind == BlockKind.H2) 19 else 16, ink), TextRange(block.text.length)))
+        mutableStateOf(TextFieldValue(styledText(block, baseSize, ink), TextRange(block.text.length)))
     }
-    // keep external updates (undo) in sync
+    // keep external updates (undo / mark toggles) in sync, preserving the cursor
     LaunchedEffect(block.text, block.marks, block.kind) {
-        val styled = styledText(block, if (block.kind == BlockKind.H1) 22 else if (block.kind == BlockKind.H2) 19 else 16, ink)
-        if (value.annotatedString.text != block.text) {
-            value = TextFieldValue(styled, TextRange(block.text.length))
+        val styled = styledText(block, baseSize, ink)
+        if (!sameStyled(value.annotatedString, styled)) {
+            val sel = value.selection
+            value = TextFieldValue(
+                styled,
+                TextRange(
+                    sel.start.coerceAtMost(styled.text.length),
+                    sel.end.coerceAtMost(styled.text.length)
+                )
+            )
         }
     }
     LaunchedEffect(focusedId) {
@@ -129,7 +161,30 @@ fun TextBlockRow(block: Block, ink: Color, vm: EditorViewModel) {
             vm.onBlockFocus(null)
         }
     }
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    val isQuote = "quote" in block.marks
+    val quoteTint = if (dark) Color.White.copy(alpha = 0.05f) else Color(0xFFF2EBFF)
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .then(
+                if (isQuote) Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(quoteTint)
+                    .drawBehind {
+                        val w = 4.dp.toPx()
+                        drawRect(Color(0xFF8B5CF6), topLeft = Offset.Zero, size = Size(w, size.height))
+                    }
+                    .padding(start = 12.dp, top = 4.dp, bottom = 4.dp, end = 8.dp)
+                else Modifier
+            ),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (block.kind == BlockKind.H1 && sectionNo != null) {
+            Text(
+                "$sectionNo. ",
+                color = ink, fontSize = 22.sp, fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(end = 2.dp)
+            )
+        }
         if (block.kind == BlockKind.LI) {
             Text("• ", color = ink, fontSize = 16.sp, modifier = Modifier.padding(end = 4.dp))
         }
@@ -238,6 +293,27 @@ fun ImageBlockRow(block: Block, atts: List<Attachment>, ink: Color, vm: EditorVi
     }
 }
 
+/** Block dispatcher used by the editor list. Includes the forward-compat DRAW branch. */
+@Composable
+fun BlockRow(
+    block: Block,
+    atts: List<Attachment>,
+    ink: Color,
+    dark: Boolean,
+    vm: EditorViewModel,
+    sectionNo: Int? = null,
+    onDraw: () -> Unit = {}
+) {
+    when (block.kind) {
+        BlockKind.TODO -> TodoBlockRow(block = block, ink = ink, vm = vm, dark = dark)
+        BlockKind.IMG -> ImageBlockRow(block = block, atts = atts, ink = ink, vm = vm)
+        BlockKind.AUDIO -> AudioBlockRow(block = block, atts = atts, ink = ink, dark = dark)
+        BlockKind.DRAW -> DrawBlockView(block = block, onEdit = onDraw)
+        else -> TextBlockRow(block = block, ink = ink, vm = vm, dark = dark, sectionNo = sectionNo)
+    }
+}
+
+/** Embedded voice player: dark rounded bar, white play button, decorative waveform, mm:ss. */
 @Composable
 fun AudioBlockRow(block: Block, atts: List<Attachment>, ink: Color, dark: Boolean) {
     val context = LocalContext.current
@@ -246,56 +322,61 @@ fun AudioBlockRow(block: Block, atts: List<Attachment>, ink: Color, dark: Boolea
     val playingId by player.playingId.collectAsState()
     val isPlaying by player.isPlaying.collectAsState()
     val active = playingId == att.id
-    var speed by remember { mutableFloatStateOf(1f) }
-    var pos by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(active, isPlaying) {
-        while (active && isPlaying) {
-            delay(500)
-            pos = player.position()
-        }
-    }
-    val dur = if (att.durationMs > 0) att.durationMs else player.duration().takeIf { it > 0 } ?: 0L
-    Column(
+    val playing = active && isPlaying
+    val barBg = Color(0xFF1C1C1E)
+    Row(
         Modifier.fillMaxWidth().padding(vertical = 8.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(ink.copy(alpha = 0.08f))
-            .padding(12.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(barBg)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { player.toggle(att.id, att.url.ifEmpty { att.localPath }) }
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(
-                onClick = { player.toggle(att.id, att.url.ifEmpty { att.localPath }) },
-                modifier = Modifier.size(44.dp).clip(CircleShape).background(ink.copy(alpha = 0.15f))
-            ) {
-                Icon(
-                    if (active && isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    "Play", tint = ink, modifier = Modifier.size(24.dp)
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            WaveformStrip(active && isPlaying, ink, Modifier.weight(1f))
-            Spacer(Modifier.width(12.dp))
-            Text(fmtDur(dur), style = MaterialTheme.typography.labelMedium, color = ink.copy(alpha = 0.7f))
-        }
-        if (dur > 0) {
-            Slider(
-                value = pos.toFloat().coerceIn(0f, dur.toFloat()),
-                onValueChange = { player.seekTo(it.toLong()) },
-                valueRange = 0f..dur.toFloat(),
-                modifier = Modifier.fillMaxWidth()
+        Box(
+            Modifier.size(42.dp).clip(CircleShape).background(Color.White),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                if (playing) "Pause" else "Play",
+                tint = barBg, modifier = Modifier.size(24.dp)
             )
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            listOf(1f, 1.25f, 1.5f, 2f).forEach { s ->
-                Text(
-                    "${s}x",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (speed == s) ink else ink.copy(alpha = 0.45f),
-                    modifier = Modifier.clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) { speed = s; player.setSpeed(s) }.padding(horizontal = 8.dp, vertical = 4.dp)
-                )
-            }
+        Spacer(Modifier.width(12.dp))
+        VoiceBars(
+            seed = att.id.hashCode().toLong(),
+            active = playing,
+            modifier = Modifier.weight(1f)
+        )
+        Spacer(Modifier.width(12.dp))
+        val dur = if (att.durationMs > 0) att.durationMs else if (active) player.duration() else 0L
+        Text(
+            fmtDur(dur),
+            color = Color.White.copy(alpha = 0.85f),
+            style = MaterialTheme.typography.labelLarge
+        )
+    }
+}
+
+@Composable
+private fun VoiceBars(seed: Long, active: Boolean, modifier: Modifier = Modifier) {
+    val bars = remember(seed) {
+        val r = Random(seed)
+        List(32) { 0.25f + r.nextFloat() * 0.75f }
+    }
+    Canvas(modifier.height(30.dp).fillMaxWidth()) {
+        val bw = size.width / bars.size
+        bars.forEachIndexed { i, f ->
+            val bh = f * size.height
+            drawRoundRect(
+                color = Color.White.copy(alpha = if (active) 0.95f else 0.55f),
+                topLeft = Offset(i * bw + bw * 0.22f, (size.height - bh) / 2),
+                size = Size(bw * 0.56f, bh),
+                cornerRadius = CornerRadius(2.dp.toPx())
+            )
         }
     }
 }

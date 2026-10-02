@@ -28,6 +28,7 @@ import com.kurupdevs.mynotes.data.model.BlockKind
 import com.kurupdevs.mynotes.data.remote.Jsons
 import com.kurupdevs.mynotes.data.model.Block
 import com.kurupdevs.mynotes.ui.archive.ArchiveScreen
+import com.kurupdevs.mynotes.ui.draw.DrawScreen
 import com.kurupdevs.mynotes.ui.editor.EditorScreen
 import com.kurupdevs.mynotes.ui.home.HomeScreen
 import com.kurupdevs.mynotes.ui.labels.LabelsScreen
@@ -148,7 +149,8 @@ fun MyNotesAppRoot(openNoteId: String? = null) {
                             animScope = this,
                             onBack = { nav.popBackStack() },
                             onShare = { nav.navigate(Routes.share(it)) },
-                            onDuplicate = { nav.navigate(Routes.editor(it)) }
+                            onDuplicate = { nav.navigate(Routes.editor(it)) },
+                            onDrawNote = { nav.navigate(Routes.draw(it)) }
                         )
                     }
                     composable(Routes.SEARCH) {
@@ -177,6 +179,13 @@ fun MyNotesAppRoot(openNoteId: String? = null) {
                     ) { entry ->
                         val id = entry.arguments!!.getString("noteId")!!
                         ShareScreen(noteId = id, dark = dark, onBack = { nav.popBackStack() })
+                    }
+                    composable(
+                        Routes.DRAW,
+                        arguments = listOf(navArgument("noteId") { type = NavType.StringType })
+                    ) { entry ->
+                        val id = entry.arguments!!.getString("noteId")!!
+                        DrawScreen(noteId = id, onBack = { nav.popBackStack() })
                     }
                 }
             }

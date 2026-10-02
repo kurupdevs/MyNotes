@@ -17,7 +17,7 @@ private val Context.prefs by preferencesDataStore("mynotes_prefs")
 class PrefsRepository(private val context: Context) {
     private val store = context.prefs
 
-    val theme: Flow<String> = store.data.map { it[stringPreferencesKey("theme")] ?: "dark" }
+    val theme: Flow<String> = store.data.map { it[stringPreferencesKey("theme")] ?: "light" }
     val sortOrder: Flow<SortOrder> = store.data.map {
         runCatching { SortOrder.valueOf(it[stringPreferencesKey("sort")] ?: "EDITED") }.getOrDefault(SortOrder.EDITED)
     }
