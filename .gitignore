@@ -1,0 +1,18 @@
+# Gradle
+.gradle/
+build/
+local.properties
+
+# Firebase client config (public per Firebase docs — safe to commit; API key is
+# locked to the app's package name + release cert SHA-1 in the Firebase console)
+# app/google-services.json
+
+# Signing (never commit keys)
+*.jks
+*.keystore
+keystore.properties
+
+# IDE
+.idea/
+*.iml
+.DS_Store
