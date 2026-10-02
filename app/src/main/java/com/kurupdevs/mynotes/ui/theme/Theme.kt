@@ -2,14 +2,20 @@ package com.kurupdevs.mynotes.ui.theme
 
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.IndicationNodeFactory
 import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.node.DelegatableNode
+import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.unit.dp
 
 private val DarkScheme = darkColorScheme(
@@ -46,10 +52,23 @@ object Motion {
     val placementSpring = spring<Float>(stiffness = Spring.StiffnessMediumLow, dampingRatio = 0.8f)
 }
 
+/** No-op indication — spec §1.7: press feedback is scale/spring based, no ripple anywhere. */
+private object NoRippleIndication : IndicationNodeFactory {
+    override fun create(interactionSource: InteractionSource): DelegatableNode = NoRippleNode()
+    override fun hashCode(): Int = -1
+    override fun equals(other: Any?): Boolean = other === this
+
+    private class NoRippleNode : Modifier.Node(), DrawModifierNode {
+        override fun ContentDrawScope.draw() {
+            drawContent()
+        }
+    }
+}
+
 @Composable
 fun MyNotesTheme(dark: Boolean = true, content: @Composable () -> Unit) {
     // spec: no default ripple anywhere — press feedback is scale/spring based
-    CompositionLocalProvider(LocalIndication provides null) {
+    CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
         MaterialTheme(
             colorScheme = if (dark) DarkScheme else LightScheme,
             typography = NotesTypography,
