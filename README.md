@@ -1,23 +1,33 @@
 # My Notes
 
-A fast, good-looking notes app for Android. Checklists, photo notes, voice notes,
-reminders that actually fire, labels, and cloud sync — free forever, no paywalls,
-no account wall. Start anonymous, link Google whenever you want a backup.
+A fast, good-looking notes app for Android. Pastel cards on a black dotted canvas,
+checklists, photo notes with on-device OCR, voice notes, reminders that actually
+fire, labels, and cloud sync. Free forever — no paywalls, no account wall. Start
+anonymous, link Google whenever you want a backup.
+
+## Download
+
+**[MyNotes-v1.0.apk](https://github.com/kurupdevs/MyNotes/releases/download/v1.0/MyNotes-v1.0.apk)**
+· [download page](https://kurupdevs.github.io/mynotes/) · [all releases](https://github.com/kurupdevs/MyNotes/releases)
+
+| Home | Editor | Voice notes | Reminders |
+|---|---|---|---|
+| ![](screenshots/01-home.webp) | ![](screenshots/02-editor.webp) | ![](screenshots/03-voice.webp) | ![](screenshots/04-reminders.webp) |
 
 ## Features
 
-- Home grid that matches the mockup: pastel cards (coral, yellow, cream, green, blue),
-  staggered layout, filter chips (All / Important / To-do / labels), dotted black background
-- Block-based editor: headings, bold/italic/underline/strike, bullets, per-line checklists,
-  undo/redo, 800ms autosave (no save button), word count
+- Staggered home grid: pastel cards (coral, yellow, cream, green, blue, purple),
+  filter chips (All / Important / To-do / labels), dotted black background
+- Block-based editor: headings, bold/italic/underline/strike, bullets, per-line
+  checklists, undo/redo, 800ms autosave, word count
 - Photo notes with on-device OCR (text in pictures becomes searchable)
 - Voice notes: background recording, waveform playback, speed control
-- Reminders with exact alarms (survive reboot), snooze, repeat daily/weekly
-- Pin / archive / 30-day trash with restore, labels with colors, full-text search
+- Reminders with exact alarms (survive reboot), snooze, daily/weekly repeat
+- Pin / archive / 30-day trash with restore, colored labels, full-text search
 - Share notes with viewer/editor roles, per-paragraph conflict pick-one
 - Biometric lock per note (or whole app), dark/light/system theme
 - Offline-first: Room is the source of truth, Firestore syncs when online
-- Export all notes as JSON or a TXT zip
+- Export everything as JSON or a TXT zip
 
 ## Build
 
@@ -31,9 +41,9 @@ Prereqs: JDK 17, Android SDK with API 35 + build-tools 35.0.1.
 3. `./gradlew assembleDebug` for a local debug build.
 
 CI (`.github/workflows/android-build.yml`) builds a **signed release APK** on
-every push to `main` and uploads it as an artifact. It needs four repo secrets:
-`KEYSTORE_BASE64` (base64 of the release keystore), `KEYSTORE_PASSWORD`,
-`KEY_ALIAS`, `KEY_PASSWORD`.
+every push to `main` and uploads it as an artifact. It needs these repo secrets:
+`KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` (the encrypted keystore
+`app/release.keystore.enc` is decrypted in CI with OpenSSL).
 
 ## Tech
 
