@@ -44,6 +44,8 @@ class PrefsRepository(private val context: Context) {
     suspend fun bumpBackupAsks() = edit { it[intPreferencesKey("backup_asks")] = (it[intPreferencesKey("backup_asks")] ?: 0) + 1 }
     suspend fun setLastSyncAt(v: Long) = edit { it[longPreferencesKey("last_sync")] = v }
     suspend fun setAppLock(v: Boolean) = edit { it[booleanPreferencesKey("app_lock")] = v }
+    val whiteThemeMigrated: Flow<Boolean> = store.data.map { it[booleanPreferencesKey("white_theme_migrated")] ?: false }
+    suspend fun setWhiteThemeMigrated() = edit { it[booleanPreferencesKey("white_theme_migrated")] = true }
 
     private suspend fun edit(fn: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
         store.edit(fn)

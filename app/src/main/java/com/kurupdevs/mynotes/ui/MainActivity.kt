@@ -43,6 +43,7 @@ import com.kurupdevs.mynotes.ui.trash.TrashScreen
 import com.kurupdevs.mynotes.ui.voice.VoiceRecorderSheet
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -60,8 +61,16 @@ class MainActivity : FragmentActivity() {
 fun MyNotesAppRoot(openNoteId: String? = null) {
     val context = LocalContext.current
     val container = (context.applicationContext as NotesApp).container
-    val themePref by container.prefs.theme.collectAsState(initial = "dark")
+    val themePref by container.prefs.theme.collectAsState(initial = "light")
     val onboardingDone by container.prefs.onboardingDone.collectAsState(initial = false)
+    // one-time migration: v1.x saved "dark" as default; v2 is white-first —
+    // flip stale dark prefs to light once so the new design actually shows.
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        if (!container.prefs.whiteThemeMigrated.first()) {
+            if (container.prefs.themeNow() == "dark") container.prefs.setTheme("light")
+            container.prefs.setWhiteThemeMigrated()
+        }
+    }
     val dark = when (themePref) {
         "light" -> false
         "system" -> androidx.compose.foundation.isSystemInDarkTheme()
